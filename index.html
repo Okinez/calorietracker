@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calories">
+<meta name="theme-color" content="#111827">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Calories</title>
+<style>
+  :root { --bg:#111827; --card:#1f2937; --line:#374151; --text:#f9fafb; --muted:#9ca3af; --good:#34d399; --bad:#f87171; --accent:#60a5fa; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif; }
+  body { padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 24px); max-width:520px; margin:0 auto; }
+  .top { display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:15px; }
+  .gear { background:none; border:0; color:var(--muted); font-size:22px; padding:6px; }
+  .balance { text-align:center; padding:18px 0 8px; }
+  .balance .num { font-size:72px; font-weight:700; letter-spacing:-2px; line-height:1; font-variant-numeric:tabular-nums; }
+  .balance .lbl { color:var(--muted); margin-top:6px; font-size:15px; }
+  .good { color:var(--good); } .bad { color:var(--bad); }
+  .bar { height:8px; background:var(--line); border-radius:4px; overflow:hidden; margin:14px 0 4px; }
+  .bar > div { height:100%; background:var(--good); width:0; transition:width .2s; }
+  .sub { display:flex; justify-content:space-between; color:var(--muted); font-size:13px; }
+  .seg { display:flex; background:var(--card); border-radius:10px; padding:3px; margin:18px 0; }
+  .seg button { flex:1; border:0; background:none; color:var(--muted); padding:10px; border-radius:8px; font-size:15px; font-weight:600; }
+  .seg button.on { background:var(--line); color:var(--text); }
+  form.add { display:flex; gap:8px; }
+  input { font-size:22px; padding:14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--text); width:100%; outline:none; }
+  input:focus { border-color:var(--accent); }
+  .btn { border:0; border-radius:12px; background:var(--accent); color:#0b1220; font-weight:700; font-size:17px; padding:0 20px; }
+  h3 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:26px 0 8px; font-weight:600; }
+  ul { list-style:none; margin:0; padding:0; background:var(--card); border-radius:12px; overflow:hidden; }
+  li { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  li:last-child { border-bottom:0; }
+  li .t { color:var(--muted); font-size:14px; }
+  li .del { background:none; border:0; color:var(--muted); font-size:20px; padding:0 4px 0 12px; }
+  .empty { color:var(--muted); padding:14px; font-size:14px; }
+  .settings { display:none; }
+  .settings.show { display:block; }
+  .settings label { display:block; color:var(--muted); font-size:14px; margin:14px 0 6px; }
+  .row { display:flex; gap:8px; margin-top:18px; }
+  .row .btn { flex:1; padding:14px; }
+  .ghost { background:var(--card); color:var(--text); }
+  .note { color:var(--muted); font-size:12px; margin-top:14px; line-height:1.4; }
+</style>
+</head>
+<body>
+
+<div id="main">
+  <div class="top"><span id="date"></span><button class="gear" id="openSettings" aria-label="Settings">⚙︎</button></div>
+
+  <div class="balance">
+    <div class="num" id="bal">0</div>
+    <div class="lbl" id="balLbl">left today</div>
+  </div>
+  <div class="bar"><div id="fill"></div></div>
+  <div class="sub"><span id="eaten">0 eaten</span><span id="goal">Goal 0</span></div>
+
+  <div class="seg">
+    <button id="rest">Rest day</button>
+    <button id="work">Workout day</button>
+  </div>
+
+  <form class="add" id="addForm">
+    <input id="cal" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Calories" autocomplete="off">
+    <button class="btn" type="submit">Add</button>
+  </form>
+
+  <h3>Today</h3>
+  <ul id="today"></ul>
+
+  <h3>Last 7 days</h3>
+  <ul id="hist"></ul>
+</div>
+
+<div class="settings" id="settings">
+  <h3 style="margin-top:8px">Daily goals</h3>
+  <label for="gWork">Workout day goal (calories)</label>
+  <input id="gWork" type="text" inputmode="numeric" pattern="[0-9]*">
+  <label for="gRest">Rest day goal (calories)</label>
+  <input id="gRest" type="text" inputmode="numeric" pattern="[0-9]*">
+  <div class="row">
+    <button class="btn ghost" id="cancel">Cancel</button>
+    <button class="btn" id="save">Save</button>
+  </div>
+  <h3>Backup</h3>
+  <div class="row" style="margin-top:0">
+    <button class="btn ghost" id="exportBtn">Copy backup</button>
+    <button class="btn ghost" id="importBtn">Restore</button>
+  </div>
+  <p class="note">Data is stored only on this phone. "Copy backup" copies all your data as text; paste it into Notes to keep a copy. "Restore" accepts that same text.</p>
+</div>
+
+<script>
+const KEY = 'calTracker.v1';
+let mem = null; // fallback if storage is unavailable
+
+function load() {
+  try { const s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch (e) {}
+  return mem || { goals: { work: null, rest: null }, days: {} };
+}
+function store(d) {
+  mem = d;
+  try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+}
+let data = load();
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString();
+function dayKey(dt = new Date()) {
+  return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+}
+function getDay(k) {
+  if (!data.days[k]) data.days[k] = { type: 'rest', entries: [] };
+  return data.days[k];
+}
+const goalFor = d => (d.type === 'work' ? data.goals.work : data.goals.rest) || 0;
+const total = d => d.entries.reduce((s, e) => s + e.c, 0);
+
+function render() {
+  const k = dayKey();
+  const d = getDay(k);
+  const g = goalFor(d), t = total(d), left = g - t;
+
+  $('date').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  $('bal').textContent = fmt(Math.abs(left));
+  $('bal').className = 'num ' + (left >= 0 ? 'good' : 'bad');
+  $('balLbl').textContent = left >= 0 ? 'left today' : 'over today';
+  $('eaten').textContent = fmt(t) + ' eaten';
+  $('goal').textContent = 'Goal ' + fmt(g);
+  const pct = g ? Math.min(100, (t / g) * 100) : 0;
+  $('fill').style.width = pct + '%';
+  $('fill').style.background = left >= 0 ? 'var(--good)' : 'var(--bad)';
+  $('rest').className = d.type === 'rest' ? 'on' : '';
+  $('work').className = d.type === 'work' ? 'on' : '';
+
+  const ul = $('today');
+  ul.innerHTML = '';
+  if (!d.entries.length) ul.innerHTML = '<div class="empty">Nothing logged yet</div>';
+  d.entries.slice().reverse().forEach(e => {
+    const li = document.createElement('li');
+    const time = new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    li.innerHTML = '<span>' + fmt(e.c) + '</span><span><span class="t">' + time + '</span><button class="del" aria-label="Delete">×</button></span>';
+    li.querySelector('.del').onclick = () => {
+      if (!confirm('Delete ' + fmt(e.c) + ' calories?')) return;
+      d.entries = d.entries.filter(x => x !== e);
+      store(data); render();
+    };
+    ul.appendChild(li);
+  });
+
+  const h = $('hist');
+  h.innerHTML = '';
+  let any = false;
+  for (let i = 1; i <= 7; i++) {
+    const dt = new Date(); dt.setDate(dt.getDate() - i);
+    const dd = data.days[dayKey(dt)];
+    if (!dd || !dd.entries.length) continue;
+    any = true;
+    const tt = total(dd), gg = goalFor(dd), diff = gg - tt;
+    const li = document.createElement('li');
+    li.innerHTML = '<span>' + dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' <span class="t">' + (dd.type === 'work' ? 'workout' : 'rest') + '</span></span>' +
+      '<span>' + fmt(tt) + ' / ' + fmt(gg) + ' <span class="' + (diff >= 0 ? 'good' : 'bad') + '">' +
+      (diff >= 0 ? '−' : '+') + fmt(Math.abs(diff)) + '</span></span>';
+    h.appendChild(li);
+  }
+  if (!any) h.innerHTML = '<div class="empty">No history yet</div>';
+}
+
+$('addForm').onsubmit = ev => {
+  ev.preventDefault();
+  const v = parseInt($('cal').value.replace(/[^0-9]/g, ''), 10);
+  if (!v) return;
+  getDay(dayKey()).entries.push({ c: v, ts: Date.now() });
+  store(data);
+  $('cal').value = '';
+  render();
+};
+$('rest').onclick = () => { getDay(dayKey()).type = 'rest'; store(data); render(); };
+$('work').onclick = () => { getDay(dayKey()).type = 'work'; store(data); render(); };
+
+function showSettings(on) {
+  $('settings').className = on ? 'settings show' : 'settings';
+  $('main').style.display = on ? 'none' : 'block';
+  if (on) { $('gWork').value = data.goals.work || ''; $('gRest').value = data.goals.rest || ''; }
+}
+$('openSettings').onclick = () => showSettings(true);
+$('cancel').onclick = () => { if (data.goals.work && data.goals.rest) showSettings(false); };
+$('save').onclick = () => {
+  const w = parseInt($('gWork').value, 10), r = parseInt($('gRest').value, 10);
+  if (!w || !r) { alert('Enter both goals.'); return; }
+  data.goals = { work: w, rest: r };
+  store(data); showSettings(false); render();
+};
+$('exportBtn').onclick = async () => {
+  const txt = JSON.stringify(data);
+  try { await navigator.clipboard.writeText(txt); alert('Backup copied. Paste it into Notes.'); }
+  catch (e) { prompt('Copy this backup text:', txt); }
+};
+$('importBtn').onclick = () => {
+  const txt = prompt('Paste backup text:');
+  if (!txt) return;
+  try {
+    const d = JSON.parse(txt);
+    if (!d.days || !d.goals) throw 0;
+    data = d; store(data); showSettings(false); render();
+  } catch (e) { alert('That backup text is not valid.'); }
+};
+
+// Refresh when the app comes back to the foreground (handles a new day starting)
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { data = load(); render(); } });
+
+render();
+if (!data.goals.work || !data.goals.rest) showSettings(true);
+</script>
+</body>
+</html>
